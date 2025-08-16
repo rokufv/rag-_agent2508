@@ -74,13 +74,15 @@ class RAGChain:
         
         # Initialize reranking retriever if needed
         # Cohereキーが無い場合は自動でリランキングを無効化
-        if use_reranking and bool(self.config.cohere_api_key):
+        if use_reranking and self.config.cohere_api_key and self.config.cohere_api_key.strip():
             self.reranking_retriever = RerankingRetriever(
                 base_retriever=retriever,
                 rerank_top_k=rerank_top_k,
             )
         else:
             self.reranking_retriever = None
+            if use_reranking:
+                logger.info("Cohere reranking disabled: no valid API key")
         
         # Build the chain
         self.chain = self._build_chain()

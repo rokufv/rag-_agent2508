@@ -151,12 +151,15 @@ class RerankingRetriever:
         
         # Initialize Cohere client
         self.cohere_client = None
-        if self.config.cohere_api_key:
+        if self.config.cohere_api_key and self.config.cohere_api_key.strip():
             try:
                 self.cohere_client = cohere.Client(self.config.cohere_api_key)
                 logger.info("Initialized Cohere reranker")
             except Exception as e:
                 logger.error(f"Failed to initialize Cohere client: {e}")
+                self.cohere_client = None
+        else:
+            logger.info("Cohere API key not provided, reranking disabled")
     
     def retrieve(self, query: str, top_k: Optional[int] = None) -> List[Document]:
         """

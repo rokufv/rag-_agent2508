@@ -3,48 +3,48 @@ Configuration management for Agent RAG Studio
 """
 import os
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
 import streamlit as st
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-class RAGConfig(BaseModel):
-    """RAG configuration settings"""
-    
+@dataclass
+class RAGConfig:
+    """RAG configuration settings (Pydantic非依存)"""
     # API Keys
     openai_api_key: Optional[str] = None
     cohere_api_key: Optional[str] = None
     langsmith_api_key: Optional[str] = None
     # LangSmith tracing toggle
-    langsmith_enabled: bool = Field(default=False)
+    langsmith_enabled: bool = False
     serpapi_api_key: Optional[str] = None
-    
+
     # Models
-    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2")
-    default_llm: str = Field(default="gpt-4o-mini")
-    
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    default_llm: str = "gpt-4o-mini"
+
     # Storage
-    data_dir: str = Field(default="./data")
-    logs_dir: str = Field(default="./logs")
-    vector_store: str = Field(default="chroma")  # chroma or faiss
-    demo_mode: bool = Field(default=False)
-    
+    data_dir: str = "./data"
+    logs_dir: str = "./logs"
+    vector_store: str = "chroma"  # chroma or faiss
+    demo_mode: bool = False
+
     # RAG Parameters
-    chunk_size: int = Field(default=1000)
-    chunk_overlap: int = Field(default=100)
-    top_k: int = Field(default=6)
-    rerank_top_r: int = Field(default=3)
-    use_reranking: bool = Field(default=True)
-    
+    chunk_size: int = 1000
+    chunk_overlap: int = 100
+    top_k: int = 6
+    rerank_top_r: int = 3
+    use_reranking: bool = True
+
     # Generation Parameters
-    temperature: float = Field(default=0.2)
-    max_tokens: int = Field(default=1000)
-    
+    temperature: float = 0.2
+    max_tokens: int = 1000
+
     # Agent Parameters
-    max_loops: int = Field(default=3)
-    confidence_threshold: float = Field(default=0.6)
+    max_loops: int = 3
+    confidence_threshold: float = 0.6
     
     @classmethod
     def from_env(cls) -> "RAGConfig":
@@ -66,7 +66,7 @@ class RAGConfig(BaseModel):
                     'vector_store': st.secrets.get('app_config', {}).get('vector_store', 'chroma'),
                     'demo_mode': st.secrets.get('app_config', {}).get('demo_mode', False),
                     'use_reranking': st.secrets.get('app_config', {}).get('use_reranking'),
-                    'langsmith_enabled': st.secrets.get('app_config', {}).get('langsmith_enabled', False),
+                    'langsmith_enabled': st.secrets.get('app_config', {}).get('langsmith_enabled'),
                 })
             except Exception:
                 pass
@@ -83,16 +83,13 @@ class RAGConfig(BaseModel):
             'logs_dir': config_data.get('logs_dir') or os.getenv('RAG_LOGS_DIR', './logs'),
             'vector_store': config_data.get('vector_store') or os.getenv('RAG_VECTOR_STORE', 'chroma'),
             'demo_mode': config_data.get('demo_mode') or os.getenv('RAG_DEMO_MODE', 'false').lower() == 'true',
-            'use_reranking': (
-                config_data.get('use_reranking')
-                if config_data.get('use_reranking') is not None
-                else (
-                    (os.getenv('RAG_USE_RERANKING').lower() == 'true') if os.getenv('RAG_USE_RERANKING') is not None
-                    else bool(config_data.get('cohere_api_key'))
-                )
-            ),
-            'langsmith_enabled': config_data.get('langsmith_enabled') if config_data.get('langsmith_enabled') is not None else (os.getenv('LANGSMITH_ENABLED', 'false').lower() == 'true'),
         })
+        
+        # 強制的に無効化（設定ファイルの値が優先）
+        if config_data.get('use_reranking') is None:
+            config_data['use_reranking'] = False
+        if config_data.get('langsmith_enabled') is None:
+            config_data['langsmith_enabled'] = False
         
         # Filter out None values
         config_data = {k: v for k, v in config_data.items() if v is not None}

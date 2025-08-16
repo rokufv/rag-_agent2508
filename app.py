@@ -7,6 +7,13 @@ import logging
 from pathlib import Path
 import traceback
 
+# 環境変数を確実に無効化（警告停止のため）
+os.environ['LANGCHAIN_TRACING_V2'] = 'false'
+os.environ['LANGCHAIN_ENDPOINT'] = ''
+os.environ['LANGCHAIN_API_KEY'] = ''
+os.environ['LANGSMITH_ENABLED'] = 'false'
+os.environ['COHERE_API_KEY'] = ''
+
 # Resolve a writable log directory (Streamlit Cloud mounts /mount/src as read-only)
 def _resolve_log_dir() -> Path:
     # 1) Explicit env var
