@@ -1,0 +1,62 @@
+# Query: gpt
+# ContextLines: 1
+
+15 件の結果 - 6 ファイル
+
+app.py:
+  101          
+  102:         llm_model = "gpt-5-nano"  # 固定（内部ではエイリアス解決）
+  103          
+
+  294              "🤖 モデル",
+  295:             "gpt-5-nano"
+  296          )
+
+.streamlit/secrets.toml:
+  15  embedding_model = "text-embedding-3-small"
+  16: default_llm = "gpt-5-nano"
+  17  demo_mode = false
+
+.streamlit/secrets.toml.template:
+  15  embedding_model = "text-embedding-3-small"
+  16: default_llm = "gpt-5-nano"
+  17  app_password = "your_app_password_here"
+
+pages/2_💬_Chat.py:
+  195                  with col2:
+  196:                     st.info(f"🤖 gpt-5-nano")
+  197                  with col3:
+
+  207                          "latency": result.get("latency", 0),
+  208:                         "model": "gpt-5-nano",
+  209                          "confidence": result.get("confidence"),
+
+rag/chain.py:
+   22  
+   23:     Keeps UI/display name (e.g., "gpt-5-nano") while mapping to a real
+   24:     model for API calls (e.g., "gpt-5-nano").
+   25      """
+   26      alias_map = {
+   27:         "gpt-5-nano": "gpt-5-nano",
+   28      }
+
+   37          retriever: BaseRetriever,
+   38:         llm_model: str = "gpt-5-nano",
+   39          temperature: float = 0.2,
+
+  427      retriever: BaseRetriever,
+  428:     llm_model: str = "gpt-5-nano",
+  429      **kwargs
+
+rag/config.py:
+  23      embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2")
+  24:     default_llm: str = Field(default="gpt-5-nano")
+  25      
+
+  59                      'embedding_model': st.secrets.get('app_config', {}).get('embedding_model', 'text-embedding-3-small'),
+  60:                     'default_llm': st.secrets.get('app_config', {}).get('default_llm', 'gpt-5-nano'),
+  61                      'data_dir': st.secrets.get('app_config', {}).get('data_dir', './data'),
+
+  75              'embedding_model': config_data.get('embedding_model') or os.getenv('RAG_EMBEDDING_MODEL', 'sentence-transformers/all-MiniLM-L6-v2'),
+  76:             'default_llm': config_data.get('default_llm') or os.getenv('RAG_DEFAULT_LLM', 'gpt-5-nano'),
+  77              'data_dir': config_data.get('data_dir') or os.getenv('RAG_DATA_DIR', './data'),
