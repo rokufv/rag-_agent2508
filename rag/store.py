@@ -115,6 +115,15 @@ class VectorStoreManager:
         chroma_db_path = self.persist_directory / "chroma_db"
         
         try:
+            # Check SQLite version compatibility
+            import sqlite3
+            sqlite_version = tuple(map(int, sqlite3.sqlite_version.split('.')))
+            if sqlite_version < (3, 35, 0):
+                logger.warning(f"SQLite version {sqlite3.sqlite_version} is too old for ChromaDB. Falling back to FAISS.")
+                self.store_type = "faiss"
+                self._load_or_create_faiss()
+                return
+            
             # Try to load existing store
             if chroma_db_path.exists() and any(chroma_db_path.iterdir()):
                 self.vector_store = Chroma(
@@ -132,7 +141,12 @@ class VectorStoreManager:
                 
         except Exception as e:
             logger.error(f"Error with Chroma store: {e}")
-            raise
+            if "sqlite" in str(e).lower() or "unsupported version" in str(e).lower():
+                logger.warning("SQLite compatibility issue detected. Falling back to FAISS.")
+                self.store_type = "faiss"
+                self._load_or_create_faiss()
+            else:
+                raise
     
     def _load_or_create_faiss(self):
         """Load or create FAISS vector store"""
@@ -157,6 +171,19 @@ class VectorStoreManager:
             logger.error(f"Error with FAISS store: {e}")
             # Reset to None if loading failed
             self.vector_store = None
+            # Try to create a minimal FAISS store
+            try:
+                from langchain_community.vectorstores import FAISS
+                # Create a dummy document to initialize FAISS
+                dummy_doc = Document(page_content="dummy", metadata={})
+                self.vector_store = FAISS.from_documents(
+                    [dummy_doc], 
+                    self.embedding_manager.embeddings
+                )
+                logger.info("Created minimal FAISS store for compatibility")
+            except Exception as fallback_error:
+                logger.error(f"FAISS fallback also failed: {fallback_error}")
+                self.vector_store = None
     
     def add_documents(
         self, 

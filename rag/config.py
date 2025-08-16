@@ -32,7 +32,7 @@ class RAGConfig:
     # Storage
     data_dir: str = "./data"
     logs_dir: str = "./logs"
-    vector_store: str = "chroma"  # chroma or faiss
+    vector_store: str = "faiss"  # chroma or faiss (FAISS is more compatible)
     demo_mode: bool = False
 
     # RAG Parameters
