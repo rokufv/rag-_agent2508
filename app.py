@@ -100,29 +100,42 @@ def render_sidebar():
         
         # API Key Status
         st.subheader("🔑 API設定状況")
-        config = st.session_state.config
         
         # 設定の再読み込みを確実にする
-        if not hasattr(config, 'openai_api_key') or not config.openai_api_key:
+        if 'config' not in st.session_state or not hasattr(st.session_state.config, 'openai_api_key'):
             st.session_state.config = get_config()
-            config = st.session_state.config
         
+        config = st.session_state.config
+        
+        # 設定の状態を直接確認
+        st.write("**設定オブジェクト情報:**")
+        st.write(f"- 設定タイプ: {type(config)}")
+        st.write(f"- OpenAI API Key: {'設定済み' if config.openai_api_key else '未設定'} ({len(config.openai_api_key) if config.openai_api_key else 0}文字)")
+        st.write(f"- COHERE API Key: {'設定済み' if config.cohere_api_key else '未設定'} ({len(config.cohere_api_key) if config.cohere_api_key else 0}文字)")
+        st.write(f"- LANGSMITH API Key: {'設定済み' if config.langsmith_api_key else '未設定'} ({len(config.langsmith_api_key) if config.langsmith_api_key else 0}文字)")
+        st.write(f"- SERPAPI API Key: {'設定済み' if config.serpapi_api_key else '未設定'} ({len(config.serpapi_api_key) if config.serpapi_api_key else 0}文字)")
+        st.write(f"- Vector Store: {config.vector_store}")
+        st.write(f"- Use Reranking: {config.use_reranking}")
+        
+        # 環境変数の状態も確認
+        st.write("**環境変数情報:**")
+        st.write(f"- OPENAI_API_KEY: {'設定済み' if os.getenv('OPENAI_API_KEY') else '未設定'}")
+        st.write(f"- COHERE_API_KEY: {'設定済み' if os.getenv('COHERE_API_KEY') else '未設定'}")
+        st.write(f"- LANGCHAIN_API_KEY: {'設定済み' if os.getenv('LANGCHAIN_API_KEY') else '未設定'}")
+        st.write(f"- SERPAPI_API_KEY: {'設定済み' if os.getenv('SERPAPI_API_KEY') else '未設定'}")
+        
+        # 設定の再読み込みボタン
+        if st.button("🔄 設定を再読み込み"):
+            st.session_state.config = get_config()
+            st.rerun()
+        
+        # 従来の検証結果表示
         key_status = config.validate_keys()
         
+        st.write("**検証結果:**")
         for service, status in key_status.items():
             icon = "✅" if status else "❌"
             st.write(f"{icon} {service.upper()}: {'設定済み' if status else '未設定'}")
-        
-        # デバッグ情報を表示
-        if st.checkbox("🔍 設定デバッグ情報を表示"):
-            st.write("**設定オブジェクト情報:**")
-            st.write(f"- 設定タイプ: {type(config)}")
-            st.write(f"- OpenAI API Key: {'設定済み' if config.openai_api_key else '未設定'}")
-            st.write(f"- COHERE API Key: {'設定済み' if config.cohere_api_key else '未設定'}")
-            st.write(f"- LANGSMITH API Key: {'設定済み' if config.langsmith_api_key else '未設定'}")
-            st.write(f"- SERPAPI API Key: {'設定済み' if config.serpapi_api_key else '未設定'}")
-            st.write(f"- Vector Store: {config.vector_store}")
-            st.write(f"- Use Reranking: {config.use_reranking}")
         
         if not any(key_status.values()):
             demo_mode = config.__dict__.get('demo_mode', False)

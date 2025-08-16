@@ -68,12 +68,19 @@ class RAGConfig:
         """Create config from environment variables and Streamlit secrets"""
         config_data = {}
         
+        logger.info("Starting configuration loading process...")
+        
         # Try to get from Streamlit secrets first
         if STREAMLIT_AVAILABLE and hasattr(st, 'secrets'):
             try:
+                logger.info("Streamlit secrets available, attempting to load...")
                 secrets_data = st.secrets.get('api_keys', {})
                 app_config = st.secrets.get('app_config', {})
                 langsmith_config = st.secrets.get('langsmith', {})
+                
+                logger.info(f"Secrets data keys: {list(secrets_data.keys()) if secrets_data else 'None'}")
+                logger.info(f"App config keys: {list(app_config.keys()) if app_config else 'None'}")
+                logger.info(f"LangSmith config keys: {list(langsmith_config.keys()) if langsmith_config else 'None'}")
                 
                 # Load API keys from secrets
                 config_data.update({
@@ -101,9 +108,12 @@ class RAGConfig:
                     config_data['langsmith_enabled'] = langsmith_config['tracing_v2']
                 
                 logger.info(f"Loaded config from Streamlit secrets: {list(config_data.keys())}")
+                logger.info(f"API keys from secrets: OpenAI={bool(config_data.get('openai_api_key'))}, COHERE={bool(config_data.get('cohere_api_key'))}, LANGSMITH={bool(config_data.get('langsmith_api_key'))}, SERPAPI={bool(config_data.get('serpapi_api_key'))}")
                     
             except Exception as e:
-                logger.warning(f"Error loading Streamlit secrets: {e}")
+                logger.error(f"Error loading Streamlit secrets: {e}")
+        else:
+            logger.warning("Streamlit secrets not available")
         
         # Fallback to environment variables if secrets not available
         if not config_data:
@@ -129,17 +139,28 @@ class RAGConfig:
         config_data = {k: v for k, v in config_data.items() if v is not None}
         
         logger.info(f"Final config keys: {list(config_data.keys())}")
-        logger.info(f"API keys status: OpenAI={bool(config_data.get('openai_api_key'))}, COHERE={bool(config_data.get('cohere_api_key'))}, LANGSMITH={bool(config_data.get('langsmith_api_key'))}, SERPAPI={bool(config_data.get('serpapi_api_key'))}")
+        logger.info(f"Final API keys status: OpenAI={bool(config_data.get('openai_api_key'))}, COHERE={bool(config_data.get('cohere_api_key'))}, LANGSMITH={bool(config_data.get('langsmith_api_key'))}, SERPAPI={bool(config_data.get('serpapi_api_key'))}")
         
-        return cls(**config_data)
+        # 設定オブジェクトを作成
+        config_instance = cls(**config_data)
+        logger.info(f"Configuration object created: {type(config_instance)}")
+        
+        return config_instance
     
     def setup_environment(self):
         """Setup environment variables for LangChain and other services"""
+        # 確実に環境変数を設定
         if self.openai_api_key:
             os.environ['OPENAI_API_KEY'] = self.openai_api_key
+            logger.info("OpenAI API key set in environment")
+        else:
+            logger.warning("OpenAI API key not available")
         
         if self.cohere_api_key:
             os.environ['COHERE_API_KEY'] = self.cohere_api_key
+            logger.info("Cohere API key set in environment")
+        else:
+            logger.warning("Cohere API key not available")
             
         # LangSmith tracing only if explicitly enabled
         if self.langsmith_api_key and self.langsmith_enabled:
@@ -147,21 +168,38 @@ class RAGConfig:
             os.environ['LANGCHAIN_TRACING_V2'] = 'true'
             os.environ['LANGCHAIN_ENDPOINT'] = 'https://api.smith.langchain.com'
             os.environ['LANGCHAIN_PROJECT'] = 'agent-rag-studio'
+            logger.info("LangSmith tracing enabled")
         else:
             # Ensure tracing is disabled to avoid 403 noise
             os.environ['LANGCHAIN_TRACING_V2'] = 'false'
+            logger.info("LangSmith tracing disabled")
         
         if self.serpapi_api_key:
             os.environ['SERPAPI_API_KEY'] = self.serpapi_api_key
+            logger.info("SerpAPI key set in environment")
+        else:
+            logger.warning("SerpAPI key not available")
+        
+        # 設定の検証をログ出力
+        logger.info(f"Environment setup complete. API keys: OpenAI={bool(os.getenv('OPENAI_API_KEY'))}, Cohere={bool(os.getenv('COHERE_API_KEY'))}, LangSmith={bool(os.getenv('LANGCHAIN_API_KEY'))}, SerpAPI={bool(os.getenv('SERPAPI_API_KEY'))}")
     
     def validate_keys(self) -> Dict[str, bool]:
         """Validate that required API keys are present"""
-        return {
+        validation_results = {
             'openai': bool(self.openai_api_key),
             'cohere': bool(self.cohere_api_key),
             'langsmith': bool(self.langsmith_api_key),
             'serpapi': bool(self.serpapi_api_key),
         }
+        
+        # 詳細な検証情報をログ出力
+        logger.info(f"Key validation results: {validation_results}")
+        logger.info(f"OpenAI key length: {len(self.openai_api_key) if self.openai_api_key else 0}")
+        logger.info(f"Cohere key length: {len(self.cohere_api_key) if self.cohere_api_key else 0}")
+        logger.info(f"LangSmith key length: {len(self.langsmith_api_key) if self.langsmith_api_key else 0}")
+        logger.info(f"SerpAPI key length: {len(self.serpapi_api_key) if self.serpapi_api_key else 0}")
+        
+        return validation_results
 
 # Global config instance
 _config = None
