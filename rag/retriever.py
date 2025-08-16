@@ -6,7 +6,17 @@ from typing import List, Optional, Dict, Any, Tuple
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from langchain_core.documents import Document
+try:
+    from langchain_core.documents import Document
+    CORE_AVAILABLE = True
+except ImportError:
+    CORE_AVAILABLE = False
+    # Fallback Document class
+    class Document:
+        def __init__(self, page_content="", metadata=None):
+            self.page_content = page_content
+            self.metadata = metadata or {}
+
 # from langchain_community.retrievers import EnsembleRetriever  # Not needed for our implementation
 try:
     from langchain_community.retrievers import BM25Retriever
@@ -14,7 +24,17 @@ try:
 except ImportError:
     BM25_AVAILABLE = False
     BM25Retriever = None
-from langchain_core.retrievers import BaseRetriever
+
+try:
+    from langchain_core.retrievers import BaseRetriever
+    CORE_RETRIEVERS_AVAILABLE = True
+except ImportError:
+    CORE_RETRIEVERS_AVAILABLE = False
+    # Fallback BaseRetriever class
+    class BaseRetriever:
+        def get_relevant_documents(self, query: str):
+            raise NotImplementedError("BaseRetriever not available")
+
 from rank_bm25 import BM25Okapi
 import cohere
 

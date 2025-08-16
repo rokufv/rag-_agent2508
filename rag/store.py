@@ -7,7 +7,17 @@ from typing import List, Optional, Dict, Any, Tuple
 from pathlib import Path
 import logging
 
-from langchain_core.documents import Document
+try:
+    from langchain_core.documents import Document
+    CORE_AVAILABLE = True
+except ImportError:
+    CORE_AVAILABLE = False
+    # Fallback Document class
+    class Document:
+        def __init__(self, page_content="", metadata=None):
+            self.page_content = page_content
+            self.metadata = metadata or {}
+
 try:
     from langchain_community.vectorstores import Chroma, FAISS
     VECTORSTORES_AVAILABLE = True
@@ -24,8 +34,25 @@ except ImportError:
         def load_local(cls, *args, **kwargs):
             raise ImportError("FAISS not available")
 
-from langchain_core.vectorstores import VectorStore
-from langchain_core.embeddings import Embeddings
+try:
+    from langchain_core.vectorstores import VectorStore
+    CORE_VECTORSTORES_AVAILABLE = True
+except ImportError:
+    CORE_VECTORSTORES_AVAILABLE = False
+    # Fallback VectorStore class
+    class VectorStore:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("VectorStore not available")
+
+try:
+    from langchain_core.embeddings import Embeddings
+    CORE_EMBEDDINGS_AVAILABLE = True
+except ImportError:
+    CORE_EMBEDDINGS_AVAILABLE = False
+    # Fallback Embeddings class
+    class Embeddings:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("Embeddings not available")
 
 from .config import get_config
 from .embedder import EmbeddingManager

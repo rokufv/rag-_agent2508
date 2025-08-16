@@ -7,8 +7,29 @@ from datetime import datetime
 import json
 
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+
+try:
+    from langchain_core.prompts import ChatPromptTemplate
+    CORE_PROMPTS_AVAILABLE = True
+except ImportError:
+    CORE_PROMPTS_AVAILABLE = False
+    # Fallback class
+    class ChatPromptTemplate:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("ChatPromptTemplate not available")
+
+try:
+    from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+    CORE_PARSERS_AVAILABLE = True
+except ImportError:
+    CORE_PARSERS_AVAILABLE = False
+    # Fallback classes
+    class StrOutputParser:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("StrOutputParser not available")
+    class JsonOutputParser:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("JsonOutputParser not available")
 
 from .state import AgentState, update_state_with_trace
 from .tools import tool_registry, get_tool_descriptions

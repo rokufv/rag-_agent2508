@@ -7,12 +7,68 @@ import json
 from datetime import datetime
 import inspect
 
-from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableParallel
+try:
+    from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+    CORE_PROMPTS_AVAILABLE = True
+except ImportError:
+    CORE_PROMPTS_AVAILABLE = False
+    # Fallback classes
+    class ChatPromptTemplate:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("ChatPromptTemplate not available")
+    class PromptTemplate:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("PromptTemplate not available")
+
+try:
+    from langchain_core.output_parsers import JsonOutputParser
+    CORE_PARSERS_AVAILABLE = True
+except ImportError:
+    CORE_PARSERS_AVAILABLE = False
+    # Fallback class
+    class JsonOutputParser:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("JsonOutputParser not available")
+
+try:
+    from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableParallel
+    CORE_RUNNABLES_AVAILABLE = True
+except ImportError:
+    CORE_RUNNABLES_AVAILABLE = False
+    # Fallback classes
+    class RunnablePassthrough:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("RunnablePassthrough not available")
+    class RunnableLambda:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("RunnableLambda not available")
+    class RunnableParallel:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("RunnableParallel not available")
+
 from langchain_openai import ChatOpenAI
-from langchain_core.documents import Document
-from langchain_core.messages import AIMessage
+
+try:
+    from langchain_core.documents import Document
+    CORE_DOCUMENTS_AVAILABLE = True
+except ImportError:
+    CORE_DOCUMENTS_AVAILABLE = False
+    # Fallback Document class
+    class Document:
+        def __init__(self, page_content="", metadata=None):
+            self.page_content = page_content
+            self.metadata = metadata or {}
+
+try:
+    from langchain_core.messages import AIMessage
+    CORE_MESSAGES_AVAILABLE = True
+except ImportError:
+    CORE_MESSAGES_AVAILABLE = False
+    # Fallback AIMessage class
+    class AIMessage:
+        def __init__(self, content="", **kwargs):
+            self.content = content
+            self.additional_kwargs = kwargs
 
 from .config import get_config
 from .retriever import BaseRetriever, RerankingRetriever

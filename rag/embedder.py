@@ -9,7 +9,18 @@ try:
 except ImportError:
     HUGGINGFACE_AVAILABLE = False
     HuggingFaceEmbeddings = None
-from langchain_core.documents import Document
+
+try:
+    from langchain_core.documents import Document
+    CORE_AVAILABLE = True
+except ImportError:
+    CORE_AVAILABLE = False
+    # Fallback Document class
+    class Document:
+        def __init__(self, page_content="", metadata=None):
+            self.page_content = page_content
+            self.metadata = metadata or {}
+
 import logging
 import numpy as np
 from .config import get_config
