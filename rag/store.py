@@ -509,7 +509,7 @@ class VectorStoreManager:
         return self._ensure_hybrid_retriever().get_relevant_documents(query)
 
 def get_vector_store(
-    store_type: str = "chroma",
+    store_type: str = "faiss",
     embedding_manager: Optional[EmbeddingManager] = None,
     persist_directory: Optional[str] = None,
 ) -> VectorStoreManager:
@@ -524,8 +524,14 @@ def get_vector_store(
     Returns:
         VectorStoreManager instance
     """
-    return VectorStoreManager(
-        store_type=store_type,
-        embedding_manager=embedding_manager,
-        persist_directory=persist_directory,
-    )
+    from .config import RAGConfig
+    
+    # Create config with specified store type
+    config = RAGConfig()
+    config.vector_store = store_type
+    
+    # Override data_dir if persist_directory is specified
+    if persist_directory:
+        config.data_dir = persist_directory
+    
+    return VectorStoreManager(config)
