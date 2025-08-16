@@ -1,0 +1,60 @@
+# Agent RAG Studio Requirements
+# Core Streamlit & LangChain
+streamlit>=1.40.0
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-openai>=0.2.0
+langchain-core>=0.3.0
+langgraph>=0.3.0
+
+# AI APIs
+openai>=1.60.0
+cohere>=5.5.0
+
+# Vector Stores & Search
+chromadb>=0.6.0
+faiss-cpu>=1.8.0
+rank-bm25>=0.2.2
+
+# Document Processing
+pypdf>=4.3.0
+unstructured>=0.15.0
+python-docx>=1.1.0
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+markdown>=3.6
+
+# Evaluation
+ragas>=0.2.0
+datasets>=2.20.0
+
+# Core Dependencies
+pydantic>=2.10.0
+numpy>=1.26.0,<2
+pandas>=2.2.0
+tiktoken>=0.7.0
+protobuf>=4.25.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+tqdm>=4.66.0
+
+# Monitoring & Logging
+langsmith>=0.2.0
+structlog>=24.1.0
+
+# Optional Web Search
+google-search-results>=2.4.2
+
+# Additional LangChain integrations
+langchain-experimental>=0.0.60
+sentence-transformers>=2.7.0
+transformers>=4.40.0
+
+# Additional utilities  
+pydantic-settings>=2.2.0
+typing-extensions>=4.11.0
+
+# Streamlit Cloud compatibility
+packaging>=23.0
