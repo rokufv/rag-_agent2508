@@ -203,24 +203,49 @@ class RAGConfig:
 
 # Global config instance
 _config = None
+_config_initialized = False
 
 def get_config() -> RAGConfig:
     """Get the global configuration instance"""
-    global _config
-    if _config is None:
+    global _config, _config_initialized
+    
+    if _config is None or not _config_initialized:
+        logger.info("Initializing global configuration...")
         _config = RAGConfig.from_env()
         _config.setup_environment()
+        _config_initialized = True
+        logger.info("Global configuration initialized and environment variables set")
+        
+        # 設定の状態を詳細にログ出力
+        logger.info(f"Config object ID: {id(_config)}")
+        logger.info(f"Config object type: {type(_config)}")
+        logger.info(f"OpenAI API key available: {bool(_config.openai_api_key)}")
+        logger.info(f"Environment OPENAI_API_KEY: {bool(os.getenv('OPENAI_API_KEY'))}")
+        logger.info(f"Environment COHERE_API_KEY: {bool(os.getenv('COHERE_API_KEY'))}")
+        logger.info(f"Environment LANGCHAIN_API_KEY: {bool(os.getenv('LANGCHAIN_API_KEY'))}")
+        logger.info(f"Environment SERPAPI_API_KEY: {bool(os.getenv('SERPAPI_API_KEY'))}")
+    
     return _config
 
 def update_config(**kwargs) -> RAGConfig:
     """Update the global configuration"""
-    global _config
+    global _config, _config_initialized
+    
     if _config is None:
-        _config = RAGConfig.from_env()
+        _config = get_config()
     
     for key, value in kwargs.items():
         if hasattr(_config, key):
             setattr(_config, key, value)
+            logger.info(f"Updated config.{key} = {value}")
     
+    # 環境変数を再設定
     _config.setup_environment()
     return _config
+
+def reset_config():
+    """Reset the global configuration (for testing/debugging)"""
+    global _config, _config_initialized
+    _config = None
+    _config_initialized = False
+    logger.info("Global configuration reset")

@@ -78,7 +78,11 @@ def initialize_session_state():
     """Initialize Streamlit session state"""
     if 'initialized' not in st.session_state:
         st.session_state.initialized = True
+        
+        # グローバル設定を使用
+        from rag.config import get_config
         st.session_state.config = get_config()
+        
         st.session_state.messages = []
         st.session_state.documents = []
         st.session_state.chunks = []
@@ -103,6 +107,7 @@ def render_sidebar():
         
         # 設定の再読み込みを確実にする
         if 'config' not in st.session_state or not hasattr(st.session_state.config, 'openai_api_key'):
+            from rag.config import get_config
             st.session_state.config = get_config()
         
         config = st.session_state.config
@@ -110,6 +115,7 @@ def render_sidebar():
         # 設定の状態を直接確認
         st.write("**設定オブジェクト情報:**")
         st.write(f"- 設定タイプ: {type(config)}")
+        st.write(f"- 設定オブジェクトID: {id(config)}")
         st.write(f"- OpenAI API Key: {'設定済み' if config.openai_api_key else '未設定'} ({len(config.openai_api_key) if config.openai_api_key else 0}文字)")
         st.write(f"- COHERE API Key: {'設定済み' if config.cohere_api_key else '未設定'} ({len(config.cohere_api_key) if config.cohere_api_key else 0}文字)")
         st.write(f"- LANGSMITH API Key: {'設定済み' if config.langsmith_api_key else '未設定'} ({len(config.langsmith_api_key) if config.langsmith_api_key else 0}文字)")
@@ -126,6 +132,8 @@ def render_sidebar():
         
         # 設定の再読み込みボタン
         if st.button("🔄 設定を再読み込み"):
+            from rag.config import reset_config, get_config
+            reset_config()
             st.session_state.config = get_config()
             st.rerun()
         
