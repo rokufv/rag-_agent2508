@@ -8,7 +8,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from langchain_core.documents import Document
 # from langchain_community.retrievers import EnsembleRetriever  # Not needed for our implementation
-from langchain_community.retrievers import BM25Retriever
+try:
+    from langchain_community.retrievers import BM25Retriever
+    BM25_AVAILABLE = True
+except ImportError:
+    BM25_AVAILABLE = False
+    BM25Retriever = None
 from langchain_core.retrievers import BaseRetriever
 from rank_bm25 import BM25Okapi
 import cohere
@@ -47,6 +52,11 @@ class HybridRetriever:
     def _initialize_bm25(self, documents: List[Document]):
         """Initialize BM25 retriever"""
         try:
+            if not BM25_AVAILABLE:
+                logger.warning("BM25Retriever not available, skipping BM25 initialization")
+                self.bm25_retriever = None
+                return
+            
             # Prepare texts for BM25
             texts = [doc.page_content for doc in documents]
             

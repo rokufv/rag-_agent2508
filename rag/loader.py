@@ -6,13 +6,35 @@ import tempfile
 from typing import List, Optional, Dict, Any, Union
 from pathlib import Path
 import streamlit as st
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-    UnstructuredHTMLLoader,
-    UnstructuredMarkdownLoader,
-    TextLoader,
-    UnstructuredWordDocumentLoader,
-)
+
+try:
+    from langchain_community.document_loaders import (
+        PyPDFLoader,
+        UnstructuredHTMLLoader,
+        UnstructuredMarkdownLoader,
+        TextLoader,
+        UnstructuredWordDocumentLoader,
+    )
+    LOADERS_AVAILABLE = True
+except ImportError:
+    LOADERS_AVAILABLE = False
+    # Fallback to basic text loader only
+    class PyPDFLoader:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("PyPDFLoader not available")
+    class UnstructuredHTMLLoader:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("UnstructuredHTMLLoader not available")
+    class UnstructuredMarkdownLoader:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("UnstructuredMarkdownLoader not available")
+    class TextLoader:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("TextLoader not available")
+    class UnstructuredWordDocumentLoader:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("UnstructuredWordDocumentLoader not available")
+
 from langchain_core.documents import Document
 import logging
 

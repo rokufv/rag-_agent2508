@@ -8,7 +8,22 @@ from pathlib import Path
 import logging
 
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Chroma, FAISS
+try:
+    from langchain_community.vectorstores import Chroma, FAISS
+    VECTORSTORES_AVAILABLE = True
+except ImportError:
+    VECTORSTORES_AVAILABLE = False
+    # Fallback classes
+    class Chroma:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("Chroma not available")
+    class FAISS:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("FAISS not available")
+        @classmethod
+        def load_local(cls, *args, **kwargs):
+            raise ImportError("FAISS not available")
+
 from langchain_core.vectorstores import VectorStore
 from langchain_core.embeddings import Embeddings
 
@@ -53,6 +68,10 @@ class VectorStoreManager:
     def _load_or_create_store(self):
         """Load existing vector store or create new one"""
         try:
+            if not VECTORSTORES_AVAILABLE:
+                logger.error("Vector stores not available, cannot initialize")
+                raise ImportError("Vector stores not available")
+            
             if self.store_type == "chroma":
                 self._load_or_create_chroma()
             elif self.store_type == "faiss":

@@ -3,7 +3,12 @@ Embedding functionality for Agent RAG Studio
 """
 from typing import List, Optional, Dict, Any
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.embeddings import HuggingFaceEmbeddings
+try:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    HUGGINGFACE_AVAILABLE = True
+except ImportError:
+    HUGGINGFACE_AVAILABLE = False
+    HuggingFaceEmbeddings = None
 from langchain_core.documents import Document
 import logging
 import numpy as np
@@ -59,6 +64,11 @@ class EmbeddingManager:
                 )
                 
             elif provider == 'huggingface':
+                if not HUGGINGFACE_AVAILABLE:
+                    logger.warning("HuggingFace embeddings not available, falling back to OpenAI")
+                    self._initialize_fallback()
+                    return
+                
                 # Configure device and model kwargs for better performance
                 model_kwargs = {'device': 'cpu'}  # Can be changed to 'cuda' if GPU available
                 encode_kwargs = {'normalize_embeddings': True}
@@ -82,6 +92,10 @@ class EmbeddingManager:
     def _initialize_fallback(self):
         """Initialize fallback embedding model"""
         try:
+            if not HUGGINGFACE_AVAILABLE:
+                logger.error("HuggingFace embeddings not available and no fallback possible")
+                raise ImportError("HuggingFace embeddings not available")
+            
             logger.warning("Falling back to all-MiniLM-L6-v2 model")
             self.model_name = 'sentence-transformers/all-MiniLM-L6-v2'
             self.model_info = self.SUPPORTED_MODELS[self.model_name]
