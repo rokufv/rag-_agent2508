@@ -7,12 +7,39 @@ import logging
 from pathlib import Path
 import traceback
 
+# Resolve a writable log directory (Streamlit Cloud mounts /mount/src as read-only)
+def _resolve_log_dir() -> Path:
+    # 1) Explicit env var
+    env_dir = os.getenv('STREAMLIT_LOG_DIR')
+    if env_dir:
+        p = Path(env_dir)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            pass
+    # 2) Streamlit Cloud writable mount
+    mount_data = Path('/mount/data')
+    if mount_data.exists():
+        p = mount_data / 'logs'
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            pass
+    # 3) Fallback to local relative path
+    p = Path('logs')
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+LOG_DIR = _resolve_log_dir()
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/app.log', encoding='utf-8'),
+        logging.FileHandler(str(LOG_DIR / 'app.log'), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )

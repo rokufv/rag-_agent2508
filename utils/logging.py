@@ -10,6 +10,49 @@ import json
 from typing import Dict, Any, Optional
 import traceback
 
+def _resolve_log_dir(preferred_dir: str | Path = "logs") -> Path:
+    """Resolve a writable log directory with safe fallbacks.
+
+    Order:
+      1) STREAMLIT_LOG_DIR env
+      2) /mount/data/logs (Streamlit Cloud writable mount)
+      3) provided preferred_dir
+      4) /tmp/agent_rag_logs
+    """
+    # 1) explicit env
+    env_dir = os.getenv("STREAMLIT_LOG_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    # 2) streamlit cloud writable area
+    mount_data = Path("/mount/data")
+    if mount_data.exists():
+        p = mount_data / "logs"
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    # 3) preferred dir
+    p = Path(preferred_dir)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    except Exception:
+        pass
+
+    # 4) final fallback
+    p = Path("/tmp/agent_rag_logs")
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def setup_logging(
     log_level: str = "INFO",
     log_dir: str = "logs",
@@ -25,26 +68,29 @@ def setup_logging(
         max_bytes: Maximum log file size
         backup_count: Number of backup files to keep
     """
-    # Create logs directory
-    log_path = Path(log_dir)
-    log_path.mkdir(exist_ok=True)
+    # Resolve writable log directory
+    log_path = _resolve_log_dir(log_dir)
     
     # Configure root logger
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            # Console handler
-            logging.StreamHandler(),
-            
-            # File handler with rotation
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    # Try to add rotating file handler safely
+    try:
+        handlers.append(
             logging.handlers.RotatingFileHandler(
                 log_path / "app.log",
                 maxBytes=max_bytes,
                 backupCount=backup_count,
                 encoding='utf-8'
             )
-        ]
+        )
+    except Exception:
+        # Fallback to console-only if file handler fails
+        pass
+
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=handlers
     )
     
     # Create specific loggers
@@ -60,34 +106,40 @@ def setup_logging(
         logger.setLevel(getattr(logging, log_level.upper()))
         
         # Add dedicated file handler for each module
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_path / f"{logger_name}.log",
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding='utf-8'
-        )
-        
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        try:
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_path / f"{logger_name}.log",
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding='utf-8'
+            )
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+        except Exception:
+            # If file handler cannot be added (read-only FS), skip silently
+            pass
 
 class StructuredLogger:
     """Structured logging for analytics and monitoring"""
     
     def __init__(self, logger_name: str = "analytics", log_dir: str = "logs"):
         self.logger = logging.getLogger(logger_name)
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(exist_ok=True)
+        self.log_dir = _resolve_log_dir(log_dir)
         
         # Setup JSON file handler
-        json_handler = logging.FileHandler(
-            self.log_dir / "analytics.jsonl",
-            encoding='utf-8'
-        )
-        json_handler.setFormatter(logging.Formatter('%(message)s'))
-        self.logger.addHandler(json_handler)
+        try:
+            json_handler = logging.FileHandler(
+                self.log_dir / "analytics.jsonl",
+                encoding='utf-8'
+            )
+            json_handler.setFormatter(logging.Formatter('%(message)s'))
+            self.logger.addHandler(json_handler)
+        except Exception:
+            # Fallback to console-only
+            self.logger.addHandler(logging.StreamHandler())
         self.logger.setLevel(logging.INFO)
     
     def log_query(
@@ -178,19 +230,22 @@ class AuditLogger:
     
     def __init__(self, log_dir: str = "logs"):
         self.logger = logging.getLogger("audit")
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(exist_ok=True)
+        self.log_dir = _resolve_log_dir(log_dir)
         
         # Setup audit file handler
-        audit_handler = logging.FileHandler(
-            self.log_dir / "audit.log",
-            encoding='utf-8'
-        )
-        audit_formatter = logging.Formatter(
-            '%(asctime)s - AUDIT - %(levelname)s - %(message)s'
-        )
-        audit_handler.setFormatter(audit_formatter)
-        self.logger.addHandler(audit_handler)
+        try:
+            audit_handler = logging.FileHandler(
+                self.log_dir / "audit.log",
+                encoding='utf-8'
+            )
+            audit_formatter = logging.Formatter(
+                '%(asctime)s - AUDIT - %(levelname)s - %(message)s'
+            )
+            audit_handler.setFormatter(audit_formatter)
+            self.logger.addHandler(audit_handler)
+        except Exception:
+            # Fallback to console-only
+            self.logger.addHandler(logging.StreamHandler())
         self.logger.setLevel(logging.INFO)
     
     def log_access(
