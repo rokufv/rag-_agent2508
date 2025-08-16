@@ -2,9 +2,22 @@
 Configuration management for Agent RAG Studio
 """
 import os
-from typing import Optional, Dict, Any
-from dataclasses import dataclass
-import streamlit as st
+import logging
+from dataclasses import dataclass, field
+from typing import Dict, Any, Optional
+
+# Try to import streamlit for secrets
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    # Mock st for non-streamlit environments
+    class MockStreamlit:
+        @staticmethod
+        def secrets():
+            return {}
+    st = MockStreamlit()
 
 # Load environment variables safely
 try:
@@ -18,43 +31,30 @@ except ImportError:
 class RAGConfig:
     """RAG configuration settings (Pydantic非依存)"""
     # API Keys
-    openai_api_key: str = ""
-    cohere_api_key: str = ""
-    langsmith_api_key: str = ""
-    serpapi_api_key: str = ""
-    bing_search_api_key: str = ""
+    openai_api_key: str = field(default="")
+    cohere_api_key: str = field(default="")
+    langsmith_api_key: str = field(default="")
+    serpapi_api_key: str = field(default="")
+    bing_search_api_key: str = field(default="")
     
     # App Configuration
-    data_dir: str = "./data"
-    logs_dir: str = "./logs"
-    vector_store: str = "faiss"  # chroma or faiss (FAISS is more compatible)
-    embedding_model: str = "text-embedding-3-small"
-    default_llm: str = "gpt-4o-mini"
-    demo_mode: bool = False
-    app_password: str = ""
-    use_reranking: bool = False
-    langsmith_enabled: bool = False
-
-    # Models
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    default_llm: str = "gpt-4o-mini"
-
-    # Storage
-    data_dir: str = "./data"
-    logs_dir: str = "./logs"
-    vector_store: str = "faiss"  # chroma or faiss (FAISS is more compatible)
-    demo_mode: bool = False
-
-    # RAG Parameters
-    chunk_size: int = 1000
-    chunk_overlap: int = 100
-    top_k: int = 6
-    rerank_top_r: int = 3
-    use_reranking: bool = True
-
+    data_dir: str = field(default="./data")
+    logs_dir: str = field(default="./logs")
+    vector_store: str = field(default="faiss")  # chroma or faiss (FAISS is more compatible)
+    embedding_model: str = field(default="text-embedding-3-small")
+    default_llm: str = field(default="gpt-4o-mini")
+    demo_mode: bool = field(default=False)
+    app_password: str = field(default="")
+    use_reranking: bool = field(default=False)
+    langsmith_enabled: bool = field(default=False)
+    
     # Generation Parameters
-    temperature: float = 0.2
-    max_tokens: int = 1000
+    temperature: float = field(default=0.7)
+    max_tokens: int = field(default=1000)
+    
+    # Retrieval Parameters
+    top_k: int = field(default=4)
+    rerank_top_r: int = field(default=3)
 
     # Agent Parameters
     max_loops: int = 3
@@ -66,45 +66,67 @@ class RAGConfig:
         config_data = {}
         
         # Try to get from Streamlit secrets first
-        if hasattr(st, 'secrets'):
+        if STREAMLIT_AVAILABLE and hasattr(st, 'secrets'):
             try:
+                secrets_data = st.secrets.get('api_keys', {})
+                app_config = st.secrets.get('app_config', {})
+                langsmith_config = st.secrets.get('langsmith', {})
+                
+                # Load API keys from secrets
                 config_data.update({
-                    'openai_api_key': st.secrets.get('api_keys', {}).get('openai_api_key'),
-                    'cohere_api_key': st.secrets.get('api_keys', {}).get('cohere_api_key'),
-                    'langsmith_api_key': st.secrets.get('api_keys', {}).get('langsmith_api_key'),
-                    'serpapi_api_key': st.secrets.get('api_keys', {}).get('serpapi_api_key'),
-                    'embedding_model': st.secrets.get('app_config', {}).get('embedding_model', 'text-embedding-3-small'),
-                    'default_llm': st.secrets.get('app_config', {}).get('default_llm', 'gpt-4o-mini'),
-                    'data_dir': st.secrets.get('app_config', {}).get('data_dir', './data'),
-                    'logs_dir': st.secrets.get('app_config', {}).get('logs_dir', './logs'),
-                    'vector_store': st.secrets.get('app_config', {}).get('vector_store', 'chroma'),
-                    'demo_mode': st.secrets.get('app_config', {}).get('demo_mode', False),
-                    'use_reranking': st.secrets.get('app_config', {}).get('use_reranking'),
-                    'langsmith_enabled': st.secrets.get('app_config', {}).get('langsmith_enabled'),
+                    'openai_api_key': secrets_data.get('openai_api_key', ''),
+                    'cohere_api_key': secrets_data.get('cohere_api_key', ''),
+                    'langsmith_api_key': secrets_data.get('langsmith_api_key', ''),
+                    'serpapi_api_key': secrets_data.get('serpapi_api_key', ''),
+                    'bing_search_api_key': secrets_data.get('bing_search_api_key', ''),
                 })
-            except Exception:
-                pass
+                
+                # Load app config from secrets
+                config_data.update({
+                    'data_dir': app_config.get('data_dir', './data'),
+                    'logs_dir': app_config.get('logs_dir', './logs'),
+                    'vector_store': app_config.get('vector_store', 'faiss'),
+                    'embedding_model': app_config.get('embedding_model', 'text-embedding-3-small'),
+                    'default_llm': app_config.get('default_llm', 'gpt-4o-mini'),
+                    'demo_mode': app_config.get('demo_mode', False),
+                    'use_reranking': app_config.get('use_reranking', False),
+                    'langsmith_enabled': app_config.get('langsmith_enabled', False),
+                })
+                
+                # Load LangSmith config from secrets
+                if langsmith_config.get('tracing_v2') is not None:
+                    config_data['langsmith_enabled'] = langsmith_config['tracing_v2']
+                
+                logger.info(f"Loaded config from Streamlit secrets: {list(config_data.keys())}")
+                    
+            except Exception as e:
+                logger.warning(f"Error loading Streamlit secrets: {e}")
         
-        # Load from environment variables with FAISS as default
-        config_data = {
-            'openai_api_key': os.getenv('OPENAI_API_KEY', ''),
-            'cohere_api_key': os.getenv('COHERE_API_KEY', ''),
-            'langsmith_api_key': os.getenv('LANGSMITH_API_KEY', ''),
-            'serpapi_api_key': os.getenv('SERPAPI_API_KEY', ''),
-            'bing_search_api_key': os.getenv('BING_SEARCH_API_KEY', ''),
-            'data_dir': os.getenv('RAG_DATA_DIR', './data'),
-            'logs_dir': os.getenv('RAG_LOGS_DIR', './logs'),
-            'vector_store': os.getenv('RAG_VECTOR_STORE', 'faiss'),  # FAISS as default
-            'embedding_model': os.getenv('RAG_EMBEDDING_MODEL', 'text-embedding-3-small'),
-            'default_llm': os.getenv('RAG_DEFAULT_LLM', 'gpt-4o-mini'),
-            'demo_mode': os.getenv('RAG_DEMO_MODE', 'false').lower() == 'true',
-            'app_password': os.getenv('RAG_APP_PASSWORD', ''),
-            'use_reranking': os.getenv('RAG_USE_RERANKING', 'false').lower() == 'true',
-            'langsmith_enabled': os.getenv('LANGSMITH_ENABLED', 'false').lower() == 'true',
-        }
+        # Fallback to environment variables if secrets not available
+        if not config_data:
+            logger.info("Falling back to environment variables")
+            config_data.update({
+                'openai_api_key': os.getenv('OPENAI_API_KEY', ''),
+                'cohere_api_key': os.getenv('COHERE_API_KEY', ''),
+                'langsmith_api_key': os.getenv('LANGSMITH_API_KEY', ''),
+                'serpapi_api_key': os.getenv('SERPAPI_API_KEY', ''),
+                'bing_search_api_key': os.getenv('BING_SEARCH_API_KEY', ''),
+                'data_dir': os.getenv('RAG_DATA_DIR', './data'),
+                'logs_dir': os.getenv('RAG_LOGS_DIR', './logs'),
+                'vector_store': os.getenv('RAG_VECTOR_STORE', 'faiss'),
+                'embedding_model': os.getenv('RAG_EMBEDDING_MODEL', 'text-embedding-3-small'),
+                'default_llm': os.getenv('RAG_DEFAULT_LLM', 'gpt-4o-mini'),
+                'demo_mode': os.getenv('RAG_DEMO_MODE', 'false').lower() == 'true',
+                'app_password': os.getenv('RAG_APP_PASSWORD', ''),
+                'use_reranking': os.getenv('RAG_USE_RERANKING', 'false').lower() == 'true',
+                'langsmith_enabled': os.getenv('LANGSMITH_ENABLED', 'false').lower() == 'true',
+            })
         
-        # Filter out None values
+        # Filter out None values (but keep empty strings for API keys)
         config_data = {k: v for k, v in config_data.items() if v is not None}
+        
+        logger.info(f"Final config keys: {list(config_data.keys())}")
+        logger.info(f"API keys status: OpenAI={bool(config_data.get('openai_api_key'))}, COHERE={bool(config_data.get('cohere_api_key'))}, LANGSMITH={bool(config_data.get('langsmith_api_key'))}, SERPAPI={bool(config_data.get('serpapi_api_key'))}")
         
         return cls(**config_data)
     
