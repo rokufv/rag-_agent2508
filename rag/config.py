@@ -5,10 +5,14 @@ import os
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 import streamlit as st
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables safely
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available, skip loading
+    pass
 
 @dataclass
 class RAGConfig:
