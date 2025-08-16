@@ -6,6 +6,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 
+# Setup logging
+logger = logging.getLogger(__name__)
+
 # Try to import streamlit for secrets
 try:
     import streamlit as st
