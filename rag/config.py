@@ -18,12 +18,22 @@ except ImportError:
 class RAGConfig:
     """RAG configuration settings (Pydantic非依存)"""
     # API Keys
-    openai_api_key: Optional[str] = None
-    cohere_api_key: Optional[str] = None
-    langsmith_api_key: Optional[str] = None
-    # LangSmith tracing toggle
+    openai_api_key: str = ""
+    cohere_api_key: str = ""
+    langsmith_api_key: str = ""
+    serpapi_api_key: str = ""
+    bing_search_api_key: str = ""
+    
+    # App Configuration
+    data_dir: str = "./data"
+    logs_dir: str = "./logs"
+    vector_store: str = "faiss"  # chroma or faiss (FAISS is more compatible)
+    embedding_model: str = "text-embedding-3-small"
+    default_llm: str = "gpt-4o-mini"
+    demo_mode: bool = False
+    app_password: str = ""
+    use_reranking: bool = False
     langsmith_enabled: bool = False
-    serpapi_api_key: Optional[str] = None
 
     # Models
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -75,25 +85,23 @@ class RAGConfig:
             except Exception:
                 pass
         
-        # Fallback to environment variables
-        config_data.update({
-            'openai_api_key': config_data.get('openai_api_key') or os.getenv('OPENAI_API_KEY'),
-            'cohere_api_key': config_data.get('cohere_api_key') or os.getenv('COHERE_API_KEY'),
-            'langsmith_api_key': config_data.get('langsmith_api_key') or os.getenv('LANGCHAIN_API_KEY'),
-            'serpapi_api_key': config_data.get('serpapi_api_key') or os.getenv('SERPAPI_API_KEY'),
-            'embedding_model': config_data.get('embedding_model') or os.getenv('RAG_EMBEDDING_MODEL', 'sentence-transformers/all-MiniLM-L6-v2'),
-            'default_llm': config_data.get('default_llm') or os.getenv('RAG_DEFAULT_LLM', 'gpt-4o-mini'),
-            'data_dir': config_data.get('data_dir') or os.getenv('RAG_DATA_DIR', './data'),
-            'logs_dir': config_data.get('logs_dir') or os.getenv('RAG_LOGS_DIR', './logs'),
-            'vector_store': config_data.get('vector_store') or os.getenv('RAG_VECTOR_STORE', 'chroma'),
-            'demo_mode': config_data.get('demo_mode') or os.getenv('RAG_DEMO_MODE', 'false').lower() == 'true',
-        })
-        
-        # 強制的に無効化（設定ファイルの値が優先）
-        if config_data.get('use_reranking') is None:
-            config_data['use_reranking'] = False
-        if config_data.get('langsmith_enabled') is None:
-            config_data['langsmith_enabled'] = False
+        # Load from environment variables with FAISS as default
+        config_data = {
+            'openai_api_key': os.getenv('OPENAI_API_KEY', ''),
+            'cohere_api_key': os.getenv('COHERE_API_KEY', ''),
+            'langsmith_api_key': os.getenv('LANGSMITH_API_KEY', ''),
+            'serpapi_api_key': os.getenv('SERPAPI_API_KEY', ''),
+            'bing_search_api_key': os.getenv('BING_SEARCH_API_KEY', ''),
+            'data_dir': os.getenv('RAG_DATA_DIR', './data'),
+            'logs_dir': os.getenv('RAG_LOGS_DIR', './logs'),
+            'vector_store': os.getenv('RAG_VECTOR_STORE', 'faiss'),  # FAISS as default
+            'embedding_model': os.getenv('RAG_EMBEDDING_MODEL', 'text-embedding-3-small'),
+            'default_llm': os.getenv('RAG_DEFAULT_LLM', 'gpt-4o-mini'),
+            'demo_mode': os.getenv('RAG_DEMO_MODE', 'false').lower() == 'true',
+            'app_password': os.getenv('RAG_APP_PASSWORD', ''),
+            'use_reranking': os.getenv('RAG_USE_RERANKING', 'false').lower() == 'true',
+            'langsmith_enabled': os.getenv('LANGSMITH_ENABLED', 'false').lower() == 'true',
+        }
         
         # Filter out None values
         config_data = {k: v for k, v in config_data.items() if v is not None}

@@ -224,11 +224,11 @@ def render_indexing_section():
         )
     
     with col2:
-        # Vector store selection
-        vector_store_type = st.selectbox(
-            "ベクタストア",
-            ["chroma", "faiss"],
-            index=0
+        # Vector Store Selection
+        vector_store = st.selectbox(
+            "🗄️ ベクトルストア",
+            ["faiss", "chroma"],  # FAISS first
+            index=0 if st.session_state.config.vector_store == "faiss" else 1
         )
     
     # Create index button
@@ -240,7 +240,7 @@ def render_indexing_section():
                 
                 # Initialize vector store
                 vector_store_manager = get_vector_store(
-                    store_type=vector_store_type,
+                    store_type=vector_store,
                     embedding_manager=embedding_manager
                 )
                 
@@ -290,7 +290,7 @@ def render_indexing_section():
                 # Update stats
                 vector_stats = vector_store_manager.get_stats()
                 st.session_state.stats.update({
-                    'vector_store_type': vector_store_type,
+                    'vector_store_type': vector_store,
                     'embedding_model': embedding_model,
                     'vector_store_stats': vector_stats
                 })
@@ -308,7 +308,7 @@ def render_indexing_section():
                     st.metric("インデックス済み文書", len(doc_ids))
                 
                 with col2:
-                    st.metric("ベクタストア", vector_store_type.upper())
+                    st.metric("ベクタストア", vector_store.upper())
                 
                 with col3:
                     st.metric("埋め込みモデル", embedding_model.split('/')[-1])

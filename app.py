@@ -135,11 +135,11 @@ def render_sidebar():
         
         llm_model = "gpt-4o-mini"  # 固定モデル
         
-        # Vector store selection
-        vector_store_type = st.selectbox(
-            "ベクタストア",
-            ["chroma", "faiss"],
-            index=0 if config.vector_store == "chroma" else 1
+        # Vector Store Selection
+        vector_store = st.selectbox(
+            "🗄️ ベクトルストア",
+            ["faiss", "chroma"],  # FAISS first
+            index=0 if config.vector_store == "faiss" else 1
         )
         
         # Generation parameters
@@ -204,7 +204,7 @@ def render_sidebar():
             update_config(
                 embedding_model=embedding_model,
                 default_llm=llm_model,
-                vector_store=vector_store_type,
+                vector_store=vector_store,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_k=top_k,

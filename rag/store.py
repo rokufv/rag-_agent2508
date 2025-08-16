@@ -6,6 +6,10 @@ import pickle
 from typing import List, Optional, Dict, Any, Tuple
 from pathlib import Path
 import logging
+import shutil
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 try:
     from langchain_core.documents import Document
@@ -54,72 +58,67 @@ except ImportError:
         def __init__(self, *args, **kwargs):
             raise NotImplementedError("Embeddings not available")
 
-from .config import get_config
+from .config import RAGConfig
 from .embedder import EmbeddingManager
+# HybridRetriever is imported later to avoid circular import
 
 logger = logging.getLogger(__name__)
 
 class VectorStoreManager:
     """Manages different vector store implementations"""
     
-    def __init__(
-        self,
-        store_type: str = "chroma",
-        embedding_manager: Optional[EmbeddingManager] = None,
-        persist_directory: Optional[str] = None,
-    ):
-        """
-        Initialize vector store manager
-        
-        Args:
-            store_type: Type of vector store ('chroma' or 'faiss')
-            embedding_manager: EmbeddingManager instance
-            persist_directory: Directory to persist the vector store
-        """
-        self.config = get_config()
-        self.store_type = store_type
-        self.embedding_manager = embedding_manager or EmbeddingManager()
-        
-        # Setup persistence directory
-        if persist_directory:
-            self.persist_directory = Path(persist_directory)
-        else:
-            self.persist_directory = Path(self.config.data_dir) / "vector_store" / store_type
-        
+    def __init__(self, config: RAGConfig):
+        self.config = config
+        self.persist_directory = Path(config.data_dir) / "vector_store"
         self.persist_directory.mkdir(parents=True, exist_ok=True)
         
-        self.vector_store = None
-        self._metadata_file = self.persist_directory / "metadata.pkl"
-        self._load_or_create_store()
+        # Initialize embedding manager first
+        self.embedding_manager = EmbeddingManager(config)
+        
+        # Set store type from config
+        self.store_type = config.vector_store.lower()
+        
+        # Initialize vector store based on config
+        if self.store_type == "chroma":
+            self._load_or_create_chroma()
+        elif self.store_type == "faiss":
+            self._load_or_create_faiss()
+        else:
+            logger.warning(f"Unknown vector store type: {self.store_type}. Falling back to FAISS.")
+            self.store_type = "faiss"
+            self._load_or_create_faiss()
+        
+        # Initialize hybrid retriever
+        self.hybrid_retriever = None # Initialize to None, will be set later
     
-    def _load_or_create_store(self):
-        """Load existing vector store or create new one"""
-        try:
-            if not VECTORSTORES_AVAILABLE:
-                logger.error("Vector stores not available, cannot initialize")
-                raise ImportError("Vector stores not available")
-            
-            if self.store_type == "chroma":
-                self._load_or_create_chroma()
-            elif self.store_type == "faiss":
-                self._load_or_create_faiss()
-            else:
-                raise ValueError(f"Unsupported vector store type: {self.store_type}")
-                
-        except Exception as e:
-            logger.error(f"Error initializing vector store: {e}")
-            raise
+    def _ensure_hybrid_retriever(self):
+        """Ensure hybrid retriever is initialized"""
+        if self.hybrid_retriever is None:
+            from .retriever import HybridRetriever
+            self.hybrid_retriever = HybridRetriever(
+                vector_retriever=self._create_vector_retriever(),
+                bm25_retriever=self._create_bm25_retriever(),
+                config=self.config
+            )
+        return self.hybrid_retriever
     
     def _load_or_create_chroma(self):
         """Load or create Chroma vector store"""
         chroma_db_path = self.persist_directory / "chroma_db"
         
         try:
-            # Check SQLite version compatibility
+            # Check SQLite version compatibility first
             import sqlite3
             sqlite_version = tuple(map(int, sqlite3.sqlite_version.split('.')))
             if sqlite_version < (3, 35, 0):
-                logger.warning(f"SQLite version {sqlite3.sqlite_version} is too old for ChromaDB. Falling back to FAISS.")
+                logger.warning(f"SQLite version {sqlite3.sqlite_version} is too old for ChromaDB. Switching to FAISS.")
+                self.store_type = "faiss"
+                self._load_or_create_faiss()
+                return
+            
+            # Check if ChromaDB is available
+            if not VECTORSTORES_AVAILABLE:
+                logger.warning("ChromaDB not available. Switching to FAISS.")
                 self.store_type = "faiss"
                 self._load_or_create_faiss()
                 return
@@ -141,12 +140,16 @@ class VectorStoreManager:
                 
         except Exception as e:
             logger.error(f"Error with Chroma store: {e}")
-            if "sqlite" in str(e).lower() or "unsupported version" in str(e).lower():
-                logger.warning("SQLite compatibility issue detected. Falling back to FAISS.")
+            # Any error with ChromaDB should trigger fallback to FAISS
+            if "sqlite" in str(e).lower() or "unsupported version" in str(e).lower() or "chroma" in str(e).lower():
+                logger.warning("ChromaDB error detected. Switching to FAISS.")
                 self.store_type = "faiss"
                 self._load_or_create_faiss()
             else:
-                raise
+                # For any other error, also fallback to FAISS
+                logger.warning("Unexpected error with ChromaDB. Switching to FAISS.")
+                self.store_type = "faiss"
+                self._load_or_create_faiss()
     
     def _load_or_create_faiss(self):
         """Load or create FAISS vector store"""
@@ -496,6 +499,14 @@ class VectorStoreManager:
         except Exception as e:
             logger.error(f"Error loading metadata: {e}")
         return None
+
+    def get_hybrid_retriever(self):
+        """Get the hybrid retriever"""
+        return self._ensure_hybrid_retriever()
+    
+    def search(self, query: str, k: int = 4, filter: Optional[Dict[str, Any]] = None) -> List[Document]:
+        """Search documents using hybrid retrieval"""
+        return self._ensure_hybrid_retriever().get_relevant_documents(query)
 
 def get_vector_store(
     store_type: str = "chroma",

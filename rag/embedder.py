@@ -23,7 +23,7 @@ except ImportError:
 
 import logging
 import numpy as np
-from .config import get_config
+from .config import get_config, RAGConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +43,15 @@ class EmbeddingManager:
         'intfloat/e5-large-v2': {'provider': 'huggingface', 'dimensions': 1024},
     }
     
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, config: Optional[RAGConfig] = None, model_name: Optional[str] = None):
         """
-        Initialize embedding manager
+        Initialize EmbeddingManager
         
         Args:
+            config: RAGConfig instance or None to use default
             model_name: Name of the embedding model to use
         """
-        self.config = get_config()
+        self.config = config or get_config()
         self.model_name = model_name or self.config.embedding_model
         self.model_info = self.SUPPORTED_MODELS.get(self.model_name, {})
         self.embeddings = None
