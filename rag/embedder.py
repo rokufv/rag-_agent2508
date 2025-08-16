@@ -51,10 +51,23 @@ class EmbeddingManager:
             config: RAGConfig instance or None to use default
             model_name: Name of the embedding model to use
         """
-        self.config = config or get_config()
+        # 設定オブジェクトの一貫性を確保
+        if config is None:
+            from .config import get_config
+            config = get_config()
+            logger.info(f"Using global config in EmbeddingManager (ID: {id(config)})")
+        else:
+            logger.info(f"Using provided config in EmbeddingManager (ID: {id(config)})")
+        
+        self.config = config
         self.model_name = model_name or self.config.embedding_model
         self.model_info = self.SUPPORTED_MODELS.get(self.model_name, {})
         self.embeddings = None
+        
+        # 設定の状態をログ出力
+        logger.info(f"EmbeddingManager initialized with model: {self.model_name}")
+        logger.info(f"Config OpenAI key available: {bool(self.config.openai_api_key)}")
+        logger.info(f"Config OpenAI key length: {len(self.config.openai_api_key) if self.config.openai_api_key else 0}")
         
         self._initialize_embeddings()
     

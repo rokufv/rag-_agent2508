@@ -220,10 +220,23 @@ def get_config() -> RAGConfig:
         logger.info(f"Config object ID: {id(_config)}")
         logger.info(f"Config object type: {type(_config)}")
         logger.info(f"OpenAI API key available: {bool(_config.openai_api_key)}")
+        logger.info(f"OpenAI API key length: {len(_config.openai_api_key) if _config.openai_api_key else 0}")
         logger.info(f"Environment OPENAI_API_KEY: {bool(os.getenv('OPENAI_API_KEY'))}")
         logger.info(f"Environment COHERE_API_KEY: {bool(os.getenv('COHERE_API_KEY'))}")
         logger.info(f"Environment LANGCHAIN_API_KEY: {bool(os.getenv('LANGCHAIN_API_KEY'))}")
         logger.info(f"Environment SERPAPI_API_KEY: {bool(os.getenv('SERPAPI_API_KEY'))}")
+        
+        # 設定の一貫性を確認
+        if _config.openai_api_key and not os.getenv('OPENAI_API_KEY'):
+            logger.warning("Config has OpenAI key but environment variable is not set")
+        elif not _config.openai_api_key and os.getenv('OPENAI_API_KEY'):
+            logger.warning("Environment has OpenAI key but config does not")
+        elif _config.openai_api_key and os.getenv('OPENAI_API_KEY'):
+            logger.info("OpenAI API key consistency confirmed")
+        else:
+            logger.warning("No OpenAI API key available in config or environment")
+    else:
+        logger.debug(f"Using existing global config (ID: {id(_config)})")
     
     return _config
 

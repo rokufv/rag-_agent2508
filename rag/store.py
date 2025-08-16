@@ -524,14 +524,23 @@ def get_vector_store(
     Returns:
         VectorStoreManager instance
     """
-    from .config import RAGConfig
+    from .config import get_config
     
-    # Create config with specified store type
-    config = RAGConfig()
-    config.vector_store = store_type
+    # グローバル設定を使用して一貫性を確保
+    config = get_config()
+    
+    # 指定されたstore_typeで設定を更新
+    if store_type != config.vector_store:
+        logger.info(f"Updating vector store type from {config.vector_store} to {store_type}")
+        config.vector_store = store_type
     
     # Override data_dir if persist_directory is specified
-    if persist_directory:
+    if persist_directory and persist_directory != config.data_dir:
+        logger.info(f"Updating data directory from {config.data_dir} to {persist_directory}")
         config.data_dir = persist_directory
+    
+    logger.info(f"Creating VectorStoreManager with config ID: {id(config)}")
+    logger.info(f"Config vector_store: {config.vector_store}")
+    logger.info(f"Config OpenAI key available: {bool(config.openai_api_key)}")
     
     return VectorStoreManager(config)
