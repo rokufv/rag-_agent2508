@@ -101,11 +101,28 @@ def render_sidebar():
         # API Key Status
         st.subheader("🔑 API設定状況")
         config = st.session_state.config
+        
+        # 設定の再読み込みを確実にする
+        if not hasattr(config, 'openai_api_key') or not config.openai_api_key:
+            st.session_state.config = get_config()
+            config = st.session_state.config
+        
         key_status = config.validate_keys()
         
         for service, status in key_status.items():
             icon = "✅" if status else "❌"
             st.write(f"{icon} {service.upper()}: {'設定済み' if status else '未設定'}")
+        
+        # デバッグ情報を表示
+        if st.checkbox("🔍 設定デバッグ情報を表示"):
+            st.write("**設定オブジェクト情報:**")
+            st.write(f"- 設定タイプ: {type(config)}")
+            st.write(f"- OpenAI API Key: {'設定済み' if config.openai_api_key else '未設定'}")
+            st.write(f"- COHERE API Key: {'設定済み' if config.cohere_api_key else '未設定'}")
+            st.write(f"- LANGSMITH API Key: {'設定済み' if config.langsmith_api_key else '未設定'}")
+            st.write(f"- SERPAPI API Key: {'設定済み' if config.serpapi_api_key else '未設定'}")
+            st.write(f"- Vector Store: {config.vector_store}")
+            st.write(f"- Use Reranking: {config.use_reranking}")
         
         if not any(key_status.values()):
             demo_mode = config.__dict__.get('demo_mode', False)
